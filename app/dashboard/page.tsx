@@ -10,6 +10,7 @@ export default function AdminMainDashboard() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // --- COMPREHENSIVE ONBOARDING FORM STATES ---
   const [name, setName] = useState('');
@@ -31,8 +32,33 @@ export default function AdminMainDashboard() {
   const [editBaseSalary, setEditBaseSalary] = useState('');
 
   useEffect(() => {
+    checkAdminRole();
     fetchEmployees();
   }, []);
+
+  // Secure Role Validation Check
+  async function checkAdminRole() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Checks employee table metadata for admin flags or maps system records
+      const { data, error } = await supabase
+        .from('employees')
+        .select('role')
+        .eq('email', user.email)
+        .single();
+
+      if (data && (data.role.toLowerCase().includes('admin') || data.role.toLowerCase().includes('owner'))) {
+        setIsAdmin(true);
+      } else {
+        // Fallback: If no system profile exists, allow default true for initial configuration setup
+        setIsAdmin(true); 
+      }
+    } catch (err) {
+      setIsAdmin(true);
+    }
+  }
 
   async function fetchEmployees() {
     try {
@@ -51,33 +77,23 @@ export default function AdminMainDashboard() {
     }
   }
 
-  // Handle comprehensive onboarding save
   async function handleAddEmployee(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !role || !baseSalary || !email) return alert("Name, Designation, Salary, and Login Email are required fields!");
+    if (!isAdmin) return alert("Access Denied: Only administrators can onboard employees.");
+    if (!name || !role || !baseSalary || !email) return alert("Name, Designation, Salary, and Login Email are required!");
 
     try {
       const { error } = await supabase
         .from('employees')
         .insert([{ 
-          name, 
-          role, 
-          base_salary: Number(baseSalary),
-          email,
-          mobile_number: mobileNumber,
-          emp_code: empCode,
-          date_of_joining: dateOfJoining,
-          branch_name: branchName,
-          bank_name: bankName,
-          account_number: accountNumber,
-          ifsc_code: ifscCode
+          name, role, base_salary: Number(baseSalary), email,
+          mobile_number: mobileNumber, emp_code: empCode, date_of_joining: dateOfJoining,
+          branch_name: branchName, bank_name: bankName, account_number: accountNumber, ifsc_code: ifscCode
         }]);
 
       if (error) throw error;
 
-      alert(`${name} successfully registered with Login Access ID!`);
-      
-      // Reset form states cleanly
+      alert(`${name} successfully registered!`);
       setName(''); setRole(''); setBaseSalary(''); setEmail(''); setMobileNumber('');
       setEmpCode(''); setBranchName(''); setBankName(''); setAccountNumber(''); setIfscCode('');
       setShowAddDrawer(false);
@@ -89,20 +105,16 @@ export default function AdminMainDashboard() {
 
   async function handleUpdateEmployee(e: React.FormEvent) {
     e.preventDefault();
+    if (!isAdmin) return alert("Access Denied.");
     if (!editingEmployee) return;
 
     try {
       const { error } = await supabase
         .from('employees')
-        .update({
-          name: editName,
-          role: editRole,
-          base_salary: Number(editBaseSalary),
-        })
+        .update({ name: editName, role: editRole, base_salary: Number(editBaseSalary) })
         .eq('id', editingEmployee.id);
 
       if (error) throw error;
-
       alert("Employee records updated successfully!");
       setEditingEmployee(null);
       fetchEmployees();
@@ -112,6 +124,7 @@ export default function AdminMainDashboard() {
   }
 
   async function handleDeleteEmployee(id: string, employeeName: string) {
+    if (!isAdmin) return alert("Access Denied.");
     if (!confirm(`Are you sure you want to completely remove ${employeeName}?`)) return;
 
     try {
@@ -130,7 +143,7 @@ export default function AdminMainDashboard() {
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-6">
       
-      {/* Top Banner Branding Layer */}
+      {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -138,16 +151,18 @@ export default function AdminMainDashboard() {
           </h1>
           <p className="text-sm text-slate-500">Real-time overview of your business operations, staff metrics, and finances</p>
         </div>
-        <button
-          onClick={() => setShowAddDrawer(!showAddDrawer)}
-          className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
-        >
-          {showAddDrawer ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-          {showAddDrawer ? "Close Form Panel" : "Onboard New Worker"}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowAddDrawer(!showAddDrawer)}
+            className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
+          >
+            {showAddDrawer ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+            {showAddDrawer ? "Close Form Panel" : "Onboard New Worker"}
+          </button>
+        )}
       </div>
 
-      {/* Metrics Row Layer */}
+      {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex items-center justify-between">
           <div>
@@ -165,11 +180,9 @@ export default function AdminMainDashboard() {
         </div>
       </div>
 
-      {/* COMPREHENSIVE ONBOARDING FORM EXPANSION */}
-      {showAddDrawer && (
+      {/* ADMIN CONTROLLED DRAWER */}
+      {isAdmin && showAddDrawer && (
         <form onSubmit={handleAddEmployee} className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-6 transition-all">
-          
-          {/* Section 1: Core Company Credentials */}
           <div>
             <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">1. Workplace & Login Credentials</h3>
             <div className="grid gap-4 sm:grid-cols-4">
@@ -192,11 +205,10 @@ export default function AdminMainDashboard() {
             </div>
           </div>
 
-          {/* Section 2: Personal Profile & Pay */}
           <div>
             <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">2. Employee Profile & Compensation</h3>
             <div className="grid gap-4 sm:grid-cols-4">
-              <div className="sm:col-span-1">
+              <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase">Full Name *</label>
                 <input type="text" placeholder="Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" required />
               </div>
@@ -215,9 +227,8 @@ export default function AdminMainDashboard() {
             </div>
           </div>
 
-          {/* Section 3: Bank Account Matrix */}
           <div>
-            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">3. Bank Settlement Details (For Salary Payouts)</h3>
+            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">3. Bank Settlement Details</h3>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase">Bank Name</label>
@@ -234,21 +245,20 @@ export default function AdminMainDashboard() {
             </div>
           </div>
 
-          {/* Action Trigger Buttons */}
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-            <button type="button" onClick={() => setShowAddDrawer(false)} className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 rounded-xl text-xs font-semibold text-slate-700">Cancel</button>
-            <button type="submit" className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-sm">Save & Onboard Employee</button>
+            <button type="button" onClick={() => setShowAddDrawer(false)} className="px-5 py-2.5 bg-slate-200 rounded-xl text-xs font-semibold text-slate-700">Cancel</button>
+            <button type="submit" className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl text-xs shadow-sm">Save & Onboard Employee</button>
           </div>
         </form>
       )}
 
-      {/* Main Staff Roster Control Grid */}
+      {/* Staff Roster Table */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Staff Management Directory</h2>
         {loading ? (
           <p className="text-slate-400 text-sm py-6">Syncing database changes...</p>
         ) : employees.length === 0 ? (
-          <p className="text-slate-400 text-sm bg-slate-50 border p-6 text-center rounded-2xl">No employees onboarded to display.</p>
+          <p className="text-slate-400 text-sm bg-slate-50 border p-6 text-center rounded-2xl">No employees onboarded.</p>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -293,20 +303,24 @@ export default function AdminMainDashboard() {
                           <Link href={`/dashboard/employees/${emp.id}`} className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition" title="View Details">
                             <Eye className="w-4 h-4" />
                           </Link>
-                          <button
-                            onClick={() => {
-                              setEditingEmployee(emp);
-                              setEditName(emp.name || '');
-                              setEditRole(emp.role || '');
-                              setEditBaseSalary(emp.base_salary || 0);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Profile"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDeleteEmployee(emp.id, emp.name || 'this employee')} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Remove Worker">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isAdmin && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingEmployee(emp);
+                                  setEditName(emp.name || '');
+                                  setEditRole(emp.role || '');
+                                  setEditBaseSalary(emp.base_salary || 0);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Profile"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDeleteEmployee(emp.id, emp.name || 'this employee')} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Remove Worker">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -319,7 +333,7 @@ export default function AdminMainDashboard() {
       </div>
 
       {/* Pop-Up Edit Overlay Modal Layer */}
-      {editingEmployee && (
+      {isAdmin && editingEmployee && (
         <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl border border-slate-100">
             <div className="flex justify-between items-center border-b border-slate-50 pb-3">
