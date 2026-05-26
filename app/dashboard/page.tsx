@@ -4,18 +4,25 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { formatINR } from '../../lib/utils';
 import Link from 'next/link';
-import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, LayoutDashboard } from 'lucide-react';
+import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, LayoutDashboard, Building2, Calendar, Phone, Mail, FileSpreadsheet } from 'lucide-react';
 
 export default function AdminMainDashboard() {
-  // Primary tracking arrays
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
 
-  // "Add Employee" Form States
+  // --- NEW ADVANCED ONBOARDING FORM STATES ---
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
-  const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [email, setEmail] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [empCode, setEmpCode] = useState('');
+  const [dateOfJoining, setDateOfJoining] = useState(new Date().toISOString().split('T')[0]);
+  const [branchName, setBranchName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
 
   // "Edit Employee" Modal States
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
@@ -27,7 +34,6 @@ export default function AdminMainDashboard() {
     fetchEmployees();
   }, []);
 
-  // 1. Read entire workforce directory from Supabase
   async function fetchEmployees() {
     try {
       setLoading(true);
@@ -45,20 +51,35 @@ export default function AdminMainDashboard() {
     }
   }
 
-  // 2. Write a new employee record to the database
+  // Handle comprehensive onboarding save
   async function handleAddEmployee(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !role || !baseSalary) return alert("Please fill out all fields");
+    if (!name || !role || !baseSalary || !email) return alert("Name, Designation, Salary, and Login Email are required fields!");
 
     try {
       const { error } = await supabase
         .from('employees')
-        .insert([{ name, role, base_salary: Number(baseSalary) }]);
+        .insert([{ 
+          name, 
+          role, 
+          base_salary: Number(baseSalary),
+          email,
+          mobile_number: mobileNumber,
+          emp_code: empCode,
+          date_of_joining: dateOfJoining,
+          branch_name: branchName,
+          bank_name: bankName,
+          account_number: accountNumber,
+          ifsc_code: ifscCode
+        }]);
 
       if (error) throw error;
 
-      alert(`${name} successfully registered!`);
-      setName(''); setRole(''); setBaseSalary('');
+      alert(`${name} successfully registered with Login Access ID!`);
+      
+      // Reset form states cleanly
+      setName(''); setRole(''); setBaseSalary(''); setEmail(''); setMobileNumber('');
+      setEmpCode(''); setBranchName(''); setBankName(''); setAccountNumber(''); setIfscCode('');
       setShowAddDrawer(false);
       fetchEmployees();
     } catch (err: any) {
@@ -66,7 +87,6 @@ export default function AdminMainDashboard() {
     }
   }
 
-  // 3. Update an existing employee profile in Supabase
   async function handleUpdateEmployee(e: React.FormEvent) {
     e.preventDefault();
     if (!editingEmployee) return;
@@ -91,7 +111,6 @@ export default function AdminMainDashboard() {
     }
   }
 
-  // 4. Wipe an employee profile cleanly out of database systems
   async function handleDeleteEmployee(id: string, employeeName: string) {
     if (!confirm(`Are you sure you want to completely remove ${employeeName}?`)) return;
 
@@ -105,7 +124,6 @@ export default function AdminMainDashboard() {
     }
   }
 
-  // Calculate quick high-level business stats
   const totalStaff = employees.length;
   const totalMonthlyPayroll = employees.reduce((sum, emp) => sum + (Number(emp.base_salary) || 0), 0);
 
@@ -124,7 +142,8 @@ export default function AdminMainDashboard() {
           onClick={() => setShowAddDrawer(!showAddDrawer)}
           className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
         >
-          <UserPlus className="w-4 h-4" /> Quick Onboard Staff
+          {showAddDrawer ? <X className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+          {showAddDrawer ? "Close Form Panel" : "Onboard New Worker"}
         </button>
       </div>
 
@@ -142,41 +161,83 @@ export default function AdminMainDashboard() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Estimated Monthly Payroll Cost</p>
             <h3 className="text-2xl font-black text-emerald-600 mt-1">{formatINR(totalMonthlyPayroll)}</h3>
           </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><TrendingUp className="w-5 h-5" /></div>
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><IndianRupee className="w-5 h-5" /></div>
         </div>
       </div>
 
-      {/* Onboarding Form Drawer Accordion */}
+      {/* COMPREHENSIVE ONBOARDING FORM EXPANSION */}
       {showAddDrawer && (
-        <form onSubmit={handleAddEmployee} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 grid gap-4 sm:grid-cols-3 items-end transition-all">
+        <form onSubmit={handleAddEmployee} className="bg-slate-50 border border-slate-200 rounded-2xl p-6 space-y-6 transition-all">
+          
+          {/* Section 1: Core Company Credentials */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
-            <input 
-              type="text" placeholder="e.g., Rajesh Kumar" value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900" required
-            />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Designation / Role</label>
-            <input 
-              type="text" placeholder="e.g., Warehouse Manager" value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900" required
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Base Pay (₹)</label>
-              <input 
-                type="number" placeholder="25000" value={baseSalary}
-                onChange={(e) => setBaseSalary(e.target.value)}
-                className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900" required
-              />
+            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">1. Workplace & Login Credentials</h3>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Employee Code</label>
+                <input type="text" placeholder="e.g. HB-104" value={empCode} onChange={(e) => setEmpCode(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Login Email ID *</label>
+                <input type="email" placeholder="rajesh@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" required />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Assigned Branch Location</label>
+                <input type="text" placeholder="e.g. Okhla Phase-3" value={branchName} onChange={(e) => setBranchName(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Date of Joining</label>
+                <input type="date" value={dateOfJoining} onChange={(e) => setDateOfJoining(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
             </div>
-            <button type="submit" className="w-full p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center shadow-sm">
-              Save
-            </button>
+          </div>
+
+          {/* Section 2: Personal Profile & Pay */}
+          <div>
+            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">2. Employee Profile & Compensation</h3>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div className="sm:col-span-1">
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Full Name *</label>
+                <input type="text" placeholder="Rajesh Kumar" value={name} onChange={(e) => setName(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" required />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Mobile / WhatsApp Number</label>
+                <input type="text" placeholder="98765xxxxx" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Designation / Role *</label>
+                <input type="text" placeholder="e.g. Supervisor" value={role} onChange={(e) => setRole(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" required />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Monthly Base Pay (₹) *</label>
+                <input type="number" placeholder="22000" value={baseSalary} onChange={(e) => setBaseSalary(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" required />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Bank Account Matrix */}
+          <div>
+            <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 border-b border-slate-200 pb-1">3. Bank Settlement Details (For Salary Payouts)</h3>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Bank Name</label>
+                <input type="text" placeholder="e.g. HDFC Bank" value={bankName} onChange={(e) => setBankName(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">Account Number</label>
+                <input type="text" placeholder="50100xxxxxxxx" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase">IFSC Code</label>
+                <input type="text" placeholder="HDFC000xxxx" value={ifscCode} onChange={(e) => setテックIFSCCode(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Action Trigger Buttons */}
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <button type="button" onClick={() => setShowAddDrawer(false)} className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 rounded-xl text-xs font-semibold text-slate-700">Cancel</button>
+            <button type="submit" className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-sm">Save & Onboard Employee</button>
           </div>
         </form>
       )}
@@ -195,7 +256,8 @@ export default function AdminMainDashboard() {
                 <thead className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Employee Details</th>
-                    <th className="px-6 py-4">Designation</th>
+                    <th className="px-6 py-4">Designation & Branch</th>
+                    <th className="px-6 py-4">Contact Info</th>
                     <th className="px-6 py-4">Base Salary</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
@@ -206,16 +268,24 @@ export default function AdminMainDashboard() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                            {emp?.name ? emp.name.charAt(0) : "E"}
+                            {(emp.name || "Employee").charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{emp.name || "Unnamed Employee"}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">ID: {emp.id.substring(0,8)}...</p>
+                            <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                              {emp.name || "Unnamed Employee"} 
+                              {emp.emp_code && <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">#{emp.emp_code}</span>}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-mono">DOJ: {emp.date_of_joining || 'N/A'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-semibold">{emp.role || "Not Specified"}</span>
+                        <p className="text-xs font-semibold text-slate-800">{emp.role || "Not Specified"}</p>
+                        <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5"><Building2 className="w-3 h-3" /> {emp.branch_name || "Main Office"}</p>
+                      </td>
+                      <td className="px-6 py-4 space-y-0.5 text-xs text-slate-500">
+                        {emp.email && <p className="flex items-center gap-1 text-slate-700"><Mail className="w-3 h-3 text-slate-400" /> {emp.email}</p>}
+                        {emp.mobile_number && <p className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400" /> {emp.mobile_number}</p>}
                       </td>
                       <td className="px-6 py-4 text-slate-900 font-bold">{formatINR(emp.base_salary)}</td>
                       <td className="px-6 py-4 text-right">
