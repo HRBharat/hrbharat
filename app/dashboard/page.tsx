@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { formatINR } from '../../lib/utils';
 import Link from 'next/link';
-import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, LayoutDashboard, Building2, Calendar, Phone, Mail, FileSpreadsheet } from 'lucide-react';
+import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, LayoutDashboard, Building2, Mail, Phone } from 'lucide-react';
 
 export default function AdminMainDashboard() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDrawer, setShowAddDrawer] = useState(false);
 
-  // --- NEW ADVANCED ONBOARDING FORM STATES ---
+  // --- COMPREHENSIVE ONBOARDING FORM STATES ---
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
@@ -229,7 +229,7 @@ export default function AdminMainDashboard() {
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase">IFSC Code</label>
-                <input type="text" placeholder="HDFC000xxxx" value={ifscCode} onChange={(e) => setテックIFSCCode(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
+                <input type="text" placeholder="HDFC000xxxx" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none" />
               </div>
             </div>
           </div>
