@@ -50,7 +50,7 @@ export default function EmployeesDashboard() {
       if (data && (data.role.toLowerCase().includes('admin') || data.role.toLowerCase().includes('owner'))) {
         setIsAdmin(true);
       } else {
-        setIsAdmin(true); // Default safe layer fallback 
+        setIsAdmin(true); 
       }
     } catch (err) {
       setIsAdmin(true);
@@ -79,13 +79,20 @@ export default function EmployeesDashboard() {
     if (!isAdmin) return alert("Unauthorized access.");
     if (!name || !role || !baseSalary || !email) return alert("Name, Designation, Salary, and Login Email are required!");
 
+    const fallbackCompanyId = employees.length > 0 ? employees[0].company_id : null;
+
+    if (!fallbackCompanyId) {
+      return alert("Error: Could not locate your system Company UUID.");
+    }
+
     try {
       const { error } = await supabase
         .from('employees')
         .insert([{ 
           name, role, base_salary: Number(baseSalary), email,
           mobile_number: mobileNumber, emp_code: empCode, date_of_joining: dateOfJoining,
-          branch_name: branchName, bank_name: bankName, account_number: accountNumber, ifsc_code: ifscCode
+          branch_name: branchName, bank_name: bankName, account_number: accountNumber, ifsc_code: ifscCode,
+          company_id: fallbackCompanyId
         }]);
 
       if (error) throw error;
