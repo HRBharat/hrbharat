@@ -209,7 +209,7 @@ export default function EmployeesDashboard() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs uppercase">
-                          {emp.name.charAt(0)}
+                          {(emp.name || "Employee").charAt(0)}
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">{emp.name}</p>
@@ -236,10 +236,9 @@ export default function EmployeesDashboard() {
                         </Link>
                         <button
                           onClick={() => {
-                            setEditingEmployee(emp);
-                            setEditName(emp.name);
-                            setEditRole(emp.role);
-                            setEditBaseSalary(emp.base_salary);
+                            setEditName(emp.name || '');
+                            setEditRole(emp.role || '');
+                            setEditBaseSalary(emp.base_salary || 0);
                           }}
                           className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                           title="Edit Profile Data"
