@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { formatINR } from '../../lib/utils';
 import Link from 'next/link';
-import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, Calendar, LayoutDashboard } from 'lucide-react';
+import { UserPlus, Trash2, Edit, X, Eye, IndianRupee, Users, TrendingUp, LayoutDashboard } from 'lucide-react';
 
 export default function AdminMainDashboard() {
   // Primary tracking arrays
@@ -204,13 +204,18 @@ export default function AdminMainDashboard() {
                   {employees.map((emp) => (
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <div>
-                          <p className="font-bold text-slate-900">{emp.name}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">ID: {emp.id.substring(0,8)}...</p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
+                            {(emp.name || "Employee").charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{emp.name || "Unnamed Employee"}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">ID: {emp.id.substring(0,8)}...</p>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-semibold">{emp.role}</span>
+                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-semibold">{emp.role || "Not Specified"}</span>
                       </td>
                       <td className="px-6 py-4 text-slate-900 font-bold">{formatINR(emp.base_salary)}</td>
                       <td className="px-6 py-4 text-right">
@@ -221,15 +226,15 @@ export default function AdminMainDashboard() {
                           <button
                             onClick={() => {
                               setEditingEmployee(emp);
-                              setEditName(emp.name);
-                              setEditRole(emp.role);
-                              setEditBaseSalary(emp.base_salary);
+                              setEditName(emp.name || '');
+                              setEditRole(emp.role || '');
+                              setEditBaseSalary(emp.base_salary || 0);
                             }}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Profile"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDeleteEmployee(emp.id, emp.name)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Remove Worker">
+                          <button onClick={() => handleDeleteEmployee(emp.id, emp.name || 'this employee')} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Remove Worker">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
