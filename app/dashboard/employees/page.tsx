@@ -1,248 +1,341 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Users, Shield, Building, Clock, Briefcase } from 'lucide-react';
+import { formatINR } from '../../../lib/utils';
+import Link from 'next/link';
+import { UserPlus, UserCheck, Trash2, Edit, X, Eye, IndianRupee } from 'lucide-react';
 
-export default function AdministrativeEmployeeRosterEngine() {
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Roster arrays state hooks
+export default function EmployeesDashboard() {
+  // Primary tracking arrays
   const [employees, setEmployees] = useState<any[]>([]);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [shifts, setShifts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Form input field state parameters
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [empCode, setEmpCode] = useState('');
-  const [department, setDepartment] = useState('');
-  const [monthlySalary, setMonthlySalary] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [ifscCode, setIfscCode] = useState('');
-  
-  // High-value operational parameters
-  const [selectedBranch, setSelectedBranch] = useState('');
-  const [selectedShift, setSelectedShift] = useState('');
+  // "Add Employee" Form States
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('');
+  const [baseSalary, setBaseSalary] = useState('');
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
 
-  const loadRosterSystemState = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).single();
-    if (!profile?.company_id) return;
-
-    // 1. Fetch active company staff profile parameters
-    const { data: staffData } = await supabase
-      .from('employees')
-      .select('*, branches(branch_name), shifts(name)')
-      .eq('company_id', profile.company_id)
-      .order('created_at', { ascending: false });
-
-    // 2. Fetch multi-location branches configuration deck
-    const { data: branchData } = await supabase
-      .from('branches')
-      .select('id, branch_name')
-      .eq('company_id', profile.company_id);
-
-    // 3. Fetch shifts configuration matrix tables
-    const { data: shiftData } = await supabase
-      .from('shifts')
-      .select('id, name, start_time')
-      .eq('company_id', profile.company_id);
-
-    setEmployees(staffData || []);
-    setBranches(branchData || []);
-    setShifts(shiftData || []);
-    setLoading(false);
-  };
+  // "Edit Employee" Modal States
+  const [editingEmployee, setEditingEmployee] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState('');
+  const [editBaseSalary, setEditBaseSalary] = useState('');
 
   useEffect(() => {
-    loadRosterSystemState();
+    fetchEmployees();
   }, []);
 
-  const handleOnboardEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullName || !email || !empCode || !monthlySalary || !selectedShift) return;
-    setSubmitting(true);
+  // 1. Read entire workforce directory from Supabase
+  async function fetchEmployees() {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user?.id).single();
-
-    // Log the unified operational metadata directly into the employee baseline row
-    const { error } = await supabase.from('employees').insert({
-      company_id: profile?.company_id,
-      full_name: fullName,
-      email: email.toLowerCase().trim(),
-      employee_code: empCode.toUpperCase().trim(),
-      department,
-      monthly_salary: parseFloat(monthlySalary),
-      account_number: accountNumber || null,
-      ifsc_code: ifscCode || null,
-      branch_id: selectedBranch || null, // Linked Branch Node Link
-      shift_id: selectedShift,           // Linked Shift Control parameters
-      status: 'Active'
-    });
-
-    if (error) {
-      alert(`Onboarding validation flag raised: ${error.message}`);
-    } else {
-      // Clear intake form fields cleanly
-      setFullName(''); setEmail(''); setEmpCode(''); setDepartment(''); setMonthlySalary('');
-      setAccountNumber(''); setIfscCode(''); setSelectedBranch(''); setSelectedShift('');
-      loadRosterSystemState(); // Instant live update refresh
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (err: any) {
+      console.error("Error loading employee roster:", err);
+      alert("Failed to load employee list.");
+    } finally {
+      setLoading(false);
     }
-    setSubmitting(false);
-  };
+  }
 
-  if (loading) return <div className="p-6 text-xs text-slate-400 font-bold animate-pulse">SYNCHRONIZING REPOSITORY ROSTER NODES...</div>;
+  // 2. Write a new employee record to the database
+  async function handleAddEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name || !role || !baseSalary) return alert("Please fill out all fields");
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .insert([
+          {
+            name,
+            role,
+            base_salary: Number(baseSalary),
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+
+      alert(`${name} successfully registered in staff log!`);
+      setName('');
+      setRole('');
+      setBaseSalary('');
+      setShowAddDrawer(false);
+      fetchEmployees(); // Refresh list immediately
+    } catch (err: any) {
+      alert(err.message || "Failed to onboard new worker");
+    }
+  }
+
+  // 3. Update an existing employee profile in Supabase
+  async function handleUpdateEmployee(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingEmployee) return;
+
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          name: editName,
+          role: editRole,
+          base_salary: Number(editBaseSalary),
+        })
+        .eq('id', editingEmployee.id);
+
+      if (error) throw error;
+
+      alert("Employee records updated successfully!");
+      setEditingEmployee(null); // Close modal
+      fetchEmployees(); // Refresh roster layout instantly
+    } catch (err: any) {
+      alert(err.message || "Failed to update employee details");
+    }
+  }
+
+  // 4. Wipe an employee profile cleanly out of database systems
+  async function handleDeleteEmployee(id: string, employeeName: string) {
+    if (!confirm(`Are you sure you want to completely remove ${employeeName} from HRBharat? This actions deletes all historical records.`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      alert("Worker deleted from systems.");
+      fetchEmployees(); // Refresh roster layout
+    } catch (err: any) {
+      alert(err.message || "Failed to execute worker termination request.");
+    }
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Staff Onboarding & Roster</h2>
-        <p className="text-xs text-slate-500 font-medium">Add new team personnel, assign operational shift parameters, and deploy branch geofences</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        
-        {/* LEFT COLUMN: STAFF REGISTRATION DRAWER */}
-        <form onSubmit={handleOnboardEmployee} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
-          <h3 className="text-xs font-black uppercase text-slate-900 tracking-wider flex items-center space-x-1.5 border-b border-slate-50 pb-2">
-            <Plus className="w-4 h-4 text-slate-700" />
-            <span>Onboard Staff Personnel</span>
-          </h3>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Full Name</label>
-              <input type="text" required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g., Rajesh Kumar" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none" />
-            </div>
-
-            <div>
-              <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Corporate Email Address</label>
-              <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="rajesh@company.com" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Employee ID Code</label>
-                <input type="text" required value={empCode} onChange={e => setEmpCode(e.target.value)} placeholder="HRB-102" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none uppercase font-mono" />
-              </div>
-              <div>
-                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Department</label>
-                <input type="text" value={department} onChange={e => setDepartment(e.target.value)} placeholder="e.g., Operations" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Monthly Base Salary (₹)</label>
-                <input type="number" required value={monthlySalary} onChange={e => setMonthlySalary(e.target.value)} placeholder="25000" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none" />
-              </div>
-              <div>
-                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Bank IFSC Code</label>
-                <input type="text" value={ifscCode} onChange={e => setIfscCode(e.target.value)} placeholder="HDFC0001234" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none uppercase font-mono" />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[9px] uppercase font-bold text-slate-400 block mb-0.5">Bank Account Routing Number</label>
-              <input type="text" value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="50100249581024" className="w-full text-xs font-medium px-3 py-2 border border-slate-200 rounded-xl focus:outline-none font-mono" />
-            </div>
-
-            {/* --- CORE OPERATIONAL INTAKE ROUTING DOWNSTREAM OVERLAYS --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-50">
-              <div>
-                <label className="text-[9px] uppercase font-bold text-teal-800 block mb-0.5 flex items-center space-x-0.5">
-                  <Building className="w-3 h-3" /> <span>Work Station Branch</span>
-                </label>
-                <select value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)} className="w-full text-xs font-bold px-2 py-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none">
-                  <option value="">HQ Main Office</option>
-                  {branches.map(br => (
-                    <option key={br.id} value={br.id}>{br.branch_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[9px] uppercase font-bold text-indigo-800 block mb-0.5 flex items-center space-x-0.5">
-                  <Clock className="w-3 h-3" /> <span>Assigned Shift</span>
-                </label>
-                <select required value={selectedShift} onChange={e => setSelectedShift(e.target.value)} className="w-full text-xs font-bold px-2 py-1.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none">
-                  <option value="">-- Choose Shift --</option>
-                  {shifts.map(sf => (
-                    <option key={sf.id} value={sf.id}>{sf.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-          </div>
-
-          <button type="submit" disabled={submitting} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-sm">
-            {submitting ? 'Registering Worker Record...' : 'Complete Staff Onboarding'}
-          </button>
-        </form>
-
-        {/* RIGHT COLUMN: ACTIVE STAFF MATRIX RECORD TABLE FEED */}
-        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm lg:col-span-2 overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-slate-100">
-            <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider flex items-center space-x-1">
-              <Users className="w-4 h-4 text-slate-400" />
-              <span>Active Employee Master Roster</span>
-            </h3>
-          </div>
-
-          {employees.length === 0 ? (
-            <div className="p-12 text-center text-xs font-medium text-slate-400">No active workers registered on the roster file yet.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-3 px-4">Personnel Profile</th>
-                    <th className="py-3 px-4">Identification</th>
-                    <th className="py-3 px-4">Assigned Location</th>
-                    <th className="py-3 px-4">Roster Shift</th>
-                    <th className="py-3 px-4 text-right">Base Wage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-medium">
-                  {employees.map(emp => (
-                    <tr key={emp.id} className="hover:bg-slate-50/50 transition-all">
-                      <td className="py-3.5 px-4">
-                        <p className="font-black text-slate-900">{emp.full_name}</p>
-                        <p className="text-[10px] text-slate-400">{emp.email}</p>
-                      </td>
-                      <td className="py-3.5 px-4 space-y-0.5">
-                        <span className="bg-slate-100 text-slate-700 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded-md">{emp.employee_code}</span>
-                        <p className="text-[10px] text-slate-400 font-semibold">{emp.department || 'General Operations'}</p>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600 font-semibold">
-                        <span className="inline-flex items-center space-x-1 text-slate-700 bg-slate-50 border border-slate-100 rounded-md px-2 py-0.5 text-[10px]">
-                          <Building className="w-3 h-3 text-slate-400" />
-                          <span>{emp.branches?.branch_name || 'HQ Main Office'}</span>
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center space-x-1 text-teal-800 bg-teal-50 border border-teal-100/60 rounded-md px-2 py-0.5 text-[10px] font-black">
-                          <Clock className="w-3 h-3 text-teal-600" />
-                          <span>{emp.shifts?.name || 'General Shift'}</span>
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-black text-slate-900">₹{emp.monthly_salary}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+    <div className="p-4 max-w-6xl mx-auto space-y-6">
+      {/* Header Panel */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Staff Management</h1>
+          <p className="text-sm text-slate-500">Onboard, track, modify, or terminate employee record structures</p>
         </div>
-
+        <button
+          onClick={() => setShowAddDrawer(!showAddDrawer)}
+          className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-4 py-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
+        >
+          <UserPlus className="w-4 h-4" /> Onboard New Worker
+        </button>
       </div>
+
+      {/* Onboarding Input Accordion Drawer */}
+      {showAddDrawer && (
+        <form onSubmit={handleAddEmployee} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 grid gap-4 sm:grid-cols-3 items-end transition-all">
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
+            <input 
+              type="text" 
+              placeholder="e.g., Rajesh Kumar"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Designation / Role</label>
+            <input 
+              type="text" 
+              placeholder="e.g., Delivery Executive"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Base Pay (₹)</label>
+              <input 
+                type="number" 
+                placeholder="18000"
+                value={baseSalary}
+                onChange={(e) => setBaseSalary(e.target.value)}
+                className="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+                required
+              />
+            </div>
+            <button 
+              type="submit"
+              className="w-full p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center shadow-sm"
+            >
+              Add
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Roster View Feed */}
+      {loading ? (
+        <p className="text-center text-slate-400 font-medium py-12 text-sm">Accessing active workforce matrix...</p>
+      ) : employees.length === 0 ? (
+        <div className="text-center py-16 bg-white border border-dashed border-slate-200 rounded-3xl">
+          <p className="text-slate-400 text-sm font-semibold">Your worker directory is currently completely empty!</p>
+          <p className="text-xs text-slate-300 mt-1">Click the top button to onboard your first team member.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Employee Details</th>
+                  <th className="px-6 py-4">Designation</th>
+                  <th className="px-6 py-4">Base Salary</th>
+                  <th className="px-6 py-4 text-right">Actions Dashboard</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {employees.map((emp) => (
+                  <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs uppercase">
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{emp.name}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">ID: {emp.id.substring(0,8)}...</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        {emp.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-900 font-bold">
+                      {formatINR(emp.base_salary)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link 
+                          href={`/dashboard/employees/${emp.id}`}
+                          className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                          title="View Profile"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setEditingEmployee(emp);
+                            setEditName(emp.name);
+                            setEditRole(emp.role);
+                            setEditBaseSalary(emp.base_salary);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Profile Data"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEmployee(emp.id, emp.name)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Terminate Account Record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-Up Modal Layout Overlay for Real-Time Changes */}
+      {editingEmployee && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl border border-slate-100">
+            <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <h3 className="font-bold text-lg text-slate-800">Modify Staff Profile</h3>
+              </div>
+              <button 
+                onClick={() => setEditingEmployee(null)} 
+                className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-1.5 rounded-xl transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdateEmployee} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Designation / Role</label>
+                <input 
+                  type="text" 
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full mt-1 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Base Monthly Salary (₹)</label>
+                <div className="relative mt-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <IndianRupee className="w-4 h-4" />
+                  </div>
+                  <input 
+                    type="number" 
+                    value={editBaseSalary}
+                    onChange={(e) => setEditBaseSalary(e.target.value)}
+                    className="w-full pl-9 p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-900"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-50">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingEmployee(null)}
+                  className="py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-semibold text-slate-600 transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
