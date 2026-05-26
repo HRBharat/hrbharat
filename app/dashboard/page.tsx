@@ -206,7 +206,7 @@ export default function AdminMainDashboard() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                            {(emp.name || "Employee").charAt(0)}
+                            {emp?.name ? emp.name.charAt(0) : "E"}
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">{emp.name || "Unnamed Employee"}</p>
