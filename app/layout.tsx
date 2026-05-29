@@ -1,23 +1,12 @@
 import './globals.css';
-import type { Metadata, Viewport } from 'next';
+import "./theme.css";
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: "HRBharat - Workspace Control Node",
   description: "Automated Operational Attendance & Payroll Ledger Core",
-  manifest: "/manifest.json", // References the file inside public/ automatically
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "HRBharat",
-  },
 };
 
-export const viewport = {
-  themeColor: "#0f172a",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1, // Prevents mobile layout zooming inside the standalone app frame
-};
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

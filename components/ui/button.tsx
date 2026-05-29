@@ -1,43 +1,24 @@
-"use client";
-
 import * as React from "react";
-// FIXED: Swapped out the path alias for a reliable relative path
-import { cn } from "../../lib/utils"; 
+import { cn } from "../../lib/utils";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary';
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
-    
-    // Premium minimalistic design tokens for HRBharat interface layers
-    const baseStyles = "inline-flex items-center justify-center font-bold tracking-tight rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
-    
-    const variants = {
-      primary: "bg-slate-900 text-white hover:bg-slate-800 shadow-sm",
-      secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200 border border-slate-200/60",
-      danger: "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200",
-      outline: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200",
-    };
-
-    const sizes = {
-      sm: "text-[10px] px-3 py-1.5",
-      md: "text-xs px-4 py-2.5",
-      lg: "text-sm px-5 py-3",
-    };
-
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'primary', ...props }, ref) => {
     return (
       <button
-        className={cn(baseStyles, variants[variant], sizes[size], className)}
+        className={cn(
+          "w-full flex h-11 items-center justify-center rounded-xl text-sm font-bold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer shadow-md shadow-teal-900/5 active:scale-[0.99]",
+          variant === 'primary' && "bg-teal-700 hover:bg-teal-800 text-white focus:ring-teal-500",
+          variant === 'secondary' && "bg-slate-100 hover:bg-slate-200 text-slate-700 focus:ring-slate-400",
+          className
+        )}
         ref={ref}
         {...props}
       />
     );
   }
 );
-
 Button.displayName = "Button";
-
-export { Button };

@@ -7,7 +7,22 @@ export default function LandingPage() {
     { name: 'Growth Plan', price: '₹1,999', limit: 'Up to 30 Employees', desc: 'Ideal for growing factories, restaurants, and local offices.' },
     { name: 'Business Plan', price: '₹3,999', limit: 'Up to 75 Employees', desc: 'Full power capabilities for established distributed operations.' },
   ];
+// app/page.tsx - Update your header navigation strip links
 
+<header className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center border-b border-slate-100">
+  <h1 className="text-2xl font-black text-teal-700 tracking-tight">HR<span className="text-slate-900">Bharat</span></h1>
+  <div className="space-x-4">
+    {/* Update this to link straight to your admin panel for rapid testing */}
+    <Link href="/admin" className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+      Sign In
+    </Link>
+    
+    {/* Update this to point to your registration wizard */}
+    <Link href="/register" className="bg-teal-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-teal-800 transition-all shadow-sm">
+      Create Account
+    </Link>
+  </div>
+</header>
   return (
     <div className="bg-slate-50 min-h-screen">
       <header className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center border-b border-slate-100">
